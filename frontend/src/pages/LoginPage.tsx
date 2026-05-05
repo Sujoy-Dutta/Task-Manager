@@ -1,110 +1,57 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlertCircle, Eye, EyeOff, LogIn } from 'lucide-react';
+import { LogIn } from 'lucide-react';
+import AuthLayout from '../components/AuthLayout';
 import { useAuth } from '../contexts/AuthContext';
+import { getApiError } from '../utils/api';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const [error, setError] = useState<string | null>(null);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPw, setShowPw] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '' });
+  const set = (k: keyof typeof form) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim() || !password) {
-      setError('Please fill in all fields.');
-      return;
-    }
-    setError('');
-    setLoading(true);
+    if (!form.email.trim() || !form.password) return;
+    setError(null);
     try {
-      await login({ email, password });
+      await login({ email: form.email, password: form.password });
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError((err as Error).message ?? 'Login failed. Please try again.');
-    } finally {
-      setLoading(false);
+      setError(getApiError(err));
     }
   }
 
   return (
-    <div className="auth-page">
-      <div className="auth-card">
-        <div className="auth-logo">
-          <div className="auth-logo-icon">
-            <img className="brand-logo-img" src="/favicon.svg?v=2" alt="TaskMind" />
-          </div>
-          <span className="auth-logo-text">TaskMind</span>
+    <AuthLayout
+      title="Welcome back"
+      subtitle="Sign in to your account to continue"
+      error={error ?? undefined}
+      footer={<>Don&apos;t have an account? <Link to="/signup">Create one for free</Link></>}
+    >
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="email">Email address</label>
+          <input id="email" type="email" placeholder="you@example.com"
+            value={form.email} onChange={set('email')}
+            autoComplete="email" autoFocus />
         </div>
 
-        <h1 className="auth-title">Welcome back</h1>
-        <p className="auth-subtitle">Sign in to your account to continue</p>
+        <div className="form-group">
+          <label htmlFor="password">Password</label>
+          <input id="password" type="password" placeholder="••••••••"
+            value={form.password} onChange={set('password')}
+            autoComplete="current-password" />
+        </div>
 
-        {error && (
-          <div className="auth-error">
-            <AlertCircle size={15} />
-            {error}
-          </div>
-        )}
-
-        <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email address</label>
-            <input
-              id="email"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              autoFocus
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <div style={{ position: 'relative' }}>
-              <input
-                id="password"
-                type={showPw ? 'text' : 'password'}
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                style={{ paddingRight: '2.5rem' }}
-              />
-              <button
-                type="button"
-                className="btn-icon"
-                onClick={() => setShowPw((v) => !v)}
-                style={{ position: 'absolute', right: '0.4rem', top: '50%', transform: 'translateY(-50%)' }}
-                tabIndex={-1}
-              >
-                {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={loading}
-            style={{ width: '100%', justifyContent: 'center', padding: '0.7rem', marginTop: '0.25rem' }}
-          >
-            {loading ? <span className="spinner" /> : <LogIn size={15} />}
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
-
-        <p className="auth-footer">
-          Don&apos;t have an account?{' '}
-          <Link to="/signup">Create one for free</Link>
-        </p>
-      </div>
-    </div>
+        <button type="submit" className="btn-primary btn-full">
+          <LogIn size={15} /> Sign in
+        </button>
+      </form>
+    </AuthLayout>
   );
 }

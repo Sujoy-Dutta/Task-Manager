@@ -1,12 +1,12 @@
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type TaskStatus = 'active' | 'completed';
+export type TaskStatus   = 'active' | 'completed';
 
 export interface Task {
-  id: string;
+  _id: string;
   userId: string;
   title: string;
   description: string;
-  dueDate: string;
+  dueDate: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   createdAt: string;
@@ -14,15 +14,9 @@ export interface Task {
 }
 
 export interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
-}
-
-export interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
 }
 
 export interface LoginCredentials {

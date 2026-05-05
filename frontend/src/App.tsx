@@ -1,11 +1,15 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
+import { Navigate, Outlet, Route, Routes } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { TaskProvider } from './contexts/TaskContext';
-import PrivateRoute from './components/PrivateRoute';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import DashboardPage from './pages/DashboardPage';
 import './App.css';
+
+function PrivateRoute() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+}
 
 function AppRoutes() {
   return (
@@ -24,7 +28,6 @@ function AppRoutes() {
         />
       </Route>
 
-      {/* Catch-all: redirect to dashboard (PrivateRoute will redirect to login if not authed) */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
