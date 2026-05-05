@@ -1,0 +1,61 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Strong neon gradient -->
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#00E5FF"></stop>
+      <stop offset="100%" stop-color="#2979FF"></stop>
+    </linearGradient>
+
+    <!-- Outer glow -->
+    <filter id="strongGlow">
+      <feGaussianBlur stdDeviation="8" result="blur"></feGaussianBlur>
+      <feMerge>
+        <feMergeNode in="blur"></feMergeNode>
+        <feMergeNode in="SourceGraphic"></feMergeNode>
+      </feMerge>
+    </filter>
+
+    <!-- Shadow for depth -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#000"></feDropShadow>
+    </filter>
+  </defs>
+
+  <!-- Transparent bg (works on dark UI) -->
+
+  <!-- Main container shape -->
+  <rect x="96" y="96" width="320" height="320" rx="60" fill="#0A0F1F" filter="url(#shadow)"></rect>
+
+  <!-- Divider -->
+  <line x1="256" y1="120" x2="256" y2="392" stroke="#1E2A44" stroke-width="4"></line>
+
+  <!-- Brain side -->
+  <g stroke="url(#neon)" stroke-width="6" fill="none" filter="url(#strongGlow)">
+    <path d="M160 160 
+             C120 180, 120 240, 160 260
+             C120 280, 140 340, 200 340
+             C240 340, 260 300, 220 260
+             C260 240, 240 180, 200 160 Z"></path>
+    
+    <!-- Circuits -->
+    <path d="M150 200 L190 220"></path>
+    <path d="M150 280 L190 300"></path>
+    <circle cx="190" cy="220" r="6" fill="#00E5FF"></circle>
+    <circle cx="190" cy="300" r="6" fill="#00E5FF"></circle>
+  </g>
+
+  <!-- Checklist side -->
+  <g stroke="url(#neon)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#strongGlow)">
+    <path d="M290 190 L310 210 L350 170"></path>
+    <path d="M290 250 L310 270 L350 230"></path>
+    <path d="M290 310 L310 330 L350 290"></path>
+  </g>
+
+  <!-- Checklist lines -->
+  <g stroke="#2A3A5F" stroke-width="5" stroke-linecap="round">
+    <line x1="300" y1="190" x2="370" y2="190"></line>
+    <line x1="300" y1="250" x2="370" y2="250"></line>
+    <line x1="300" y1="310" x2="370" y2="310"></line>
+  </g>
+
+</svg>
