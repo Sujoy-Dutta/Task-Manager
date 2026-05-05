@@ -8,7 +8,7 @@ interface TaskCardProps {
   onToggle: (id: string) => void;
 }
 
-function formatDueDate(dateStr: string): { label: string; cls: string } {
+function formatDueDate(dateStr: string | null): { label: string; cls: string } {
   if (!dateStr) return { label: 'No due date', cls: '' };
   const due = new Date(dateStr);
   const now = new Date();
@@ -35,7 +35,7 @@ export default function TaskCard({ task, onEdit, onDelete, onToggle }: TaskCardP
       <div className="task-card-header">
         <button
           className={`task-checkbox ${isCompleted ? 'checked' : ''}`}
-          onClick={() => onToggle(task.id)}
+          onClick={() => onToggle(task._id)}
           title={isCompleted ? 'Mark as active' : 'Mark as completed'}
         >
           {isCompleted && <Check size={11} strokeWidth={3} />}
@@ -55,7 +55,7 @@ export default function TaskCard({ task, onEdit, onDelete, onToggle }: TaskCardP
           </button>
           <button
             className="btn-icon"
-            onClick={() => onDelete(task.id)}
+            onClick={() => onDelete(task._id)}
             title="Delete task"
             style={{ color: 'var(--danger)' }}
           >

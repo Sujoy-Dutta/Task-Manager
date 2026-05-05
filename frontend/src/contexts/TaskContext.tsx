@@ -1,104 +1,73 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Task, TaskFormData } from '../types';
-import { generateId } from '../utils/auth';
-import { getTasks, getTasksByUser, saveTasks } from '../utils/storage';
+import api, { getApiError } from '../utils/api';
 import { useAuth } from './AuthContext';
 
 interface TaskContextValue {
   tasks: Task[];
-  addTask: (data: TaskFormData) => void;
-  updateTask: (id: string, data: Partial<TaskFormData & { status: Task['status'] }>) => void;
-  deleteTask: (id: string) => void;
-  toggleComplete: (id: string) => void;
+  loading: boolean;
+  error: string | null;
+  addTask:        (data: TaskFormData) => Promise<void>;
+  updateTask:     (id: string, data: TaskFormData) => Promise<void>;
+  deleteTask:     (id: string) => Promise<void>;
+  toggleComplete: (id: string) => Promise<void>;
+  refetch:        () => Promise<void>;
 }
 
 const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks,   setTasks]   = useState<Task[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      setTasks(getTasksByUser(user.id));
-    } else {
-      setTasks([]);
+  const fetchTasks = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const { data } = await api.get<{ data: { tasks: Task[] } }>('/tasks');
+      setTasks(data.data.tasks);
+    } catch (err) {
+      setError(getApiError(err));
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
-  const persistUpdate = useCallback((updatedUserTasks: Task[]) => {
-    if (!user) return;
-    const allTasks = getTasks();
-    const others = allTasks.filter((t) => t.userId !== user.id);
-    saveTasks([...others, ...updatedUserTasks]);
-    setTasks(updatedUserTasks);
-  }, [user]);
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
-  const addTask = useCallback((data: TaskFormData) => {
-    if (!user) return;
-    const now = new Date().toISOString();
-    const newTask: Task = {
-      id: generateId(),
-      userId: user.id,
-      title: data.title.trim(),
-      description: data.description.trim(),
-      dueDate: data.dueDate,
-      priority: data.priority,
-      status: 'active',
-      createdAt: now,
-      updatedAt: now,
-    };
-    const updated = [...tasks, newTask];
-    persistUpdate(updated);
-  }, [user, tasks, persistUpdate]);
+  const addTask = useCallback(async (form: TaskFormData) => {
+    const { data } = await api.post<{ data: { task: Task } }>('/tasks', {
+      ...form, dueDate: form.dueDate || null,
+    });
+    setTasks((prev) => [data.data.task, ...prev]);
+  }, []);
 
-  const updateTask = useCallback(
-    (id: string, data: Partial<TaskFormData & { status: Task['status'] }>) => {
-      const updated = tasks.map((t) =>
-        t.id === id ? { ...t, ...data, updatedAt: new Date().toISOString() } : t
-      );
-      persistUpdate(updated);
-    },
-    [tasks, persistUpdate]
+  const updateTask = useCallback(async (id: string, form: TaskFormData) => {
+    const { data } = await api.put<{ data: { task: Task } }>(`/tasks/${id}`, {
+      ...form, dueDate: form.dueDate || null,
+    });
+    setTasks((prev) => prev.map((t) => (t._id === id ? data.data.task : t)));
+  }, []);
+
+  const deleteTask = useCallback(async (id: string) => {
+    await api.delete(`/tasks/${id}`);
+    setTasks((prev) => prev.filter((t) => t._id !== id));
+  }, []);
+
+  const toggleComplete = useCallback(async (id: string) => {
+    const { data } = await api.patch<{ data: { task: Task } }>(`/tasks/${id}/toggle`);
+    setTasks((prev) => prev.map((t) => (t._id === id ? data.data.task : t)));
+  }, []);
+
+  return (
+    <TaskContext.Provider value={{ tasks, loading, error, addTask, updateTask, deleteTask, toggleComplete, refetch: fetchTasks }}>
+      {children}
+    </TaskContext.Provider>
   );
-
-  const deleteTask = useCallback(
-    (id: string) => {
-      persistUpdate(tasks.filter((t) => t.id !== id));
-    },
-    [tasks, persistUpdate]
-  );
-
-  const toggleComplete = useCallback(
-    (id: string) => {
-      const updated = tasks.map((t) =>
-        t.id === id
-          ? {
-              ...t,
-              status: t.status === 'completed' ? 'active' : ('completed' as Task['status']),
-              updatedAt: new Date().toISOString(),
-            }
-          : t
-      );
-      persistUpdate(updated);
-    },
-    [tasks, persistUpdate]
-  );
-
-  const value = useMemo<TaskContextValue>(
-    () => ({ tasks, addTask, updateTask, deleteTask, toggleComplete }),
-    [tasks, addTask, updateTask, deleteTask, toggleComplete]
-  );
-
-  return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
 }
 
 export function useTasks(): TaskContextValue {

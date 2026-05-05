@@ -1,111 +1,87 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { AuthState, LoginCredentials, SignupCredentials, User } from '../types';
-import { generateId, generateToken } from '../utils/auth';
-import {
-  clearSession,
-  getStoredUser,
-  getToken,
-  getUsers,
-  saveSession,
-  saveUsers,
-} from '../utils/storage';
+import type { LoginCredentials, SignupCredentials, User } from '../types';
+import api, { getApiError } from '../utils/api';
 
-interface AuthContextValue extends AuthState {
-  login: (creds: LoginCredentials) => Promise<void>;
+const TOKEN_KEY = 'taskmind_token';
+const USER_KEY  = 'taskmind_user';
+
+function saveSession(token: string, user: User) {
+  localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
+}
+function getToken() { return localStorage.getItem(TOKEN_KEY); }
+function getStoredUser(): User | null {
+  const raw = localStorage.getItem(USER_KEY);
+  return raw ? (JSON.parse(raw) as User) : null;
+}
+
+interface AuthContextValue {
+  user: User | null;
+  isAuthenticated: boolean;
+  login:  (creds: LoginCredentials)  => Promise<void>;
   signup: (creds: SignupCredentials) => Promise<void>;
   logout: () => void;
+}
+
+interface AuthResponse {
+  token: string;
+  user: User;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(getStoredUser);
-  const [token, setToken] = useState<string | null>(getToken);
+
 
   useEffect(() => {
-    const storedUser = getStoredUser();
-    const storedToken = getToken();
-    if (storedUser && storedToken) {
-      setUser(storedUser);
-      setToken(storedToken);
-    }
+    if (!getToken()) return;
+    api.get<{ data: { user: User } }>('/auth/me')
+      .then(({ data }) => setUser(data.data.user))
+      .catch(() => {
+        clearSession();
+        setUser(null);
+      });
+  }, []);
+
+  const applyAuth = useCallback((res: AuthResponse) => {
+    saveSession(res.token, res.user);
+    setUser(res.user);
   }, []);
 
   const login = useCallback(async (creds: LoginCredentials) => {
-    const users = getUsers();
-    const found = users.find(
-      (u) => u.email.toLowerCase() === creds.email.toLowerCase()
-    );
-
-    // In real app, password would be verified server-side.
-    // Here we just check if the user exists in our local registry.
-    const passwords: Record<string, string> = JSON.parse(
-      localStorage.getItem('taskflow_passwords') ?? '{}'
-    );
-
-    if (!found || passwords[found.id] !== creds.password) {
-      throw new Error('Invalid email or password.');
+    try {
+      const { data } = await api.post<{ data: AuthResponse }>('/auth/login', creds);
+      applyAuth(data.data);
+    } catch (err) {
+      throw new Error(getApiError(err));
     }
-
-    const newToken = generateToken(found.id);
-    saveSession(newToken, found);
-    setUser(found);
-    setToken(newToken);
-  }, []);
+  }, [applyAuth]);
 
   const signup = useCallback(async (creds: SignupCredentials) => {
-    const users = getUsers();
-    const exists = users.some(
-      (u) => u.email.toLowerCase() === creds.email.toLowerCase()
-    );
-    if (exists) throw new Error('An account with this email already exists.');
-
-    const newUser: User = {
-      id: generateId(),
-      name: creds.name.trim(),
-      email: creds.email.toLowerCase().trim(),
-    };
-
-    const passwords: Record<string, string> = JSON.parse(
-      localStorage.getItem('taskflow_passwords') ?? '{}'
-    );
-    passwords[newUser.id] = creds.password;
-    localStorage.setItem('taskflow_passwords', JSON.stringify(passwords));
-
-    saveUsers([...users, newUser]);
-    const newToken = generateToken(newUser.id);
-    saveSession(newToken, newUser);
-    setUser(newUser);
-    setToken(newToken);
-  }, []);
+    try {
+      const { data } = await api.post<{ data: AuthResponse }>('/auth/signup', creds);
+      applyAuth(data.data);
+    } catch (err) {
+      throw new Error(getApiError(err));
+    }
+  }, [applyAuth]);
 
   const logout = useCallback(() => {
     clearSession();
     setUser(null);
-    setToken(null);
   }, []);
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      token,
-      isAuthenticated: !!user && !!token,
-      login,
-      signup,
-      logout,
-    }),
-    [user, token, login, signup, logout]
+  return (
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, signup, logout }}>
+      {children}
+    </AuthContext.Provider>
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
