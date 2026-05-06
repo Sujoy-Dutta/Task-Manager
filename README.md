@@ -181,4 +181,4 @@ The frontend expects the backend to be available at `http://localhost:5000`. Upd
 
 | Variable | Description |
 |----------|-------------|
-| `VITE_API_URL` | Backend base URL, e.g. `http://localhost:5000/api` — the `/api` suffix is stripped automatically for the Socket.IO connection |
+| Backend base URL, e.g. `http://localhost:5000/api` — the `/api` suffix is stripped automatically for the Socket.IO connection |
