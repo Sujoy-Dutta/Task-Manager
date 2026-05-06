@@ -22,7 +22,6 @@ app.use(
 
 app.use(cookieParser());
 app.use(express.json({ limit: '10kb' }));
-// Strip $ and . from user-supplied keys to prevent NoSQL operator injection
 app.use(mongoSanitize());
 
 app.get('/health', (_req, res) => {

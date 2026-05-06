@@ -9,7 +9,6 @@ export async function connectDB(): Promise<void> {
     );
   }
 
-  // Avoid stacking multiple listeners in dev/hot-reload scenarios.
   mongoose.connection.removeAllListeners();
 
   mongoose.connection.on('connected', () => {
