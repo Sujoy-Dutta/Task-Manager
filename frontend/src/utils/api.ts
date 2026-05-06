@@ -1,25 +1,24 @@
 import axios from 'axios';
 
-const TOKEN_KEY = 'taskmind_token';
 
 const api = axios.create({
   baseURL: 'http://localhost:5000/api',
   headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
   timeout: 10_000,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+const PUBLIC_PATHS = ['/login', '/signup'];
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (axios.isAxiosError(error) && error.response?.status === 401) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('taskmind_user');
+    if (
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      !PUBLIC_PATHS.includes(window.location.pathname)
+    ) {
+
       window.location.href = '/login';
     }
     return Promise.reject(error);
@@ -28,7 +27,6 @@ api.interceptors.response.use(
 
 export function getApiError(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    // Server returned a structured error body
     const msg = (error.response?.data as { message?: string })?.message;
     if (msg) return msg;
     if (error.code === 'ECONNABORTED') return 'Request timed out. Please try again.';

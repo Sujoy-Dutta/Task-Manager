@@ -3,18 +3,11 @@ import type { ReactNode } from 'react';
 import type { LoginCredentials, SignupCredentials, User } from '../types';
 import api, { getApiError } from '../utils/api';
 
-const TOKEN_KEY = 'taskmind_token';
-const USER_KEY  = 'taskmind_user';
 
-function saveSession(token: string, user: User) {
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-}
-function clearSession() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
-}
-function getToken() { return localStorage.getItem(TOKEN_KEY); }
+const USER_KEY = 'taskmind_user';
+
+function saveUser(user: User) { localStorage.setItem(USER_KEY, JSON.stringify(user)); }
+function clearUser()          { localStorage.removeItem(USER_KEY); }
 function getStoredUser(): User | null {
   const raw = localStorage.getItem(USER_KEY);
   return raw ? (JSON.parse(raw) as User) : null;
@@ -25,11 +18,10 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   login:  (creds: LoginCredentials)  => Promise<void>;
   signup: (creds: SignupCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 interface AuthResponse {
-  token: string;
   user: User;
 }
 
@@ -38,43 +30,46 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(getStoredUser);
 
-
   useEffect(() => {
-    if (!getToken()) return;
     api.get<{ data: { user: User } }>('/auth/me')
-      .then(({ data }) => setUser(data.data.user))
+      .then(({ data }) => {
+        const freshUser = data.data.user;
+        saveUser(freshUser);
+        setUser(freshUser);
+      })
       .catch(() => {
-        clearSession();
+        clearUser();
         setUser(null);
       });
-  }, []);
-
-  const applyAuth = useCallback((res: AuthResponse) => {
-    saveSession(res.token, res.user);
-    setUser(res.user);
   }, []);
 
   const login = useCallback(async (creds: LoginCredentials) => {
     try {
       const { data } = await api.post<{ data: AuthResponse }>('/auth/login', creds);
-      applyAuth(data.data);
+      saveUser(data.data.user);
+      setUser(data.data.user);
     } catch (err) {
       throw new Error(getApiError(err));
     }
-  }, [applyAuth]);
+  }, []);
 
   const signup = useCallback(async (creds: SignupCredentials) => {
     try {
       const { data } = await api.post<{ data: AuthResponse }>('/auth/signup', creds);
-      applyAuth(data.data);
+      saveUser(data.data.user);
+      setUser(data.data.user);
     } catch (err) {
       throw new Error(getApiError(err));
     }
-  }, [applyAuth]);
+  }, []);
 
-  const logout = useCallback(() => {
-    clearSession();
-    setUser(null);
+  const logout = useCallback(async () => {
+    try {
+      await api.post('/auth/logout');
+    } finally {
+      clearUser();
+      setUser(null);
+    }
   }, []);
 
   return (
