@@ -63,23 +63,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
+  const toISOOrNull = (d: string) => d ? new Date(d).toISOString() : null;
+
   const addTask = useCallback(async (form: TaskFormData) => {
-    const { data } = await api.post<{ data: { task: Task } }>('/tasks', {
-      ...form, dueDate: form.dueDate || null,
-    });
-    setTasks((prev) => [data.data.task, ...prev]);
+    await api.post('/tasks', { ...form, dueDate: toISOOrNull(form.dueDate) });
+    // state update handled by socket 'task:created' event
   }, []);
 
   const updateTask = useCallback(async (id: string, form: TaskFormData) => {
-    const { data } = await api.put<{ data: { task: Task } }>(`/tasks/${id}`, {
-      ...form, dueDate: form.dueDate || null,
-    });
-    setTasks((prev) => prev.map((t) => (t._id === id ? data.data.task : t)));
+    await api.put(`/tasks/${id}`, { ...form, dueDate: toISOOrNull(form.dueDate) });
+    // state update handled by socket 'task:updated' event
   }, []);
 
   const deleteTask = useCallback(async (id: string) => {
     await api.delete(`/tasks/${id}`);
-    setTasks((prev) => prev.filter((t) => t._id !== id));
+    // state update handled by socket 'task:deleted' event
   }, []);
 
   const toggleComplete = useCallback(async (id: string) => {
