@@ -23,6 +23,7 @@ TaskMind lets users sign up, log in, and manage a personal list of tasks. Each t
 | **Real-time** | Socket.IO — per-user private rooms, JWT-authenticated via cookie |
 | **Validation** | Zod (backend schemas) |
 | **Security** | Helmet, CORS, express-rate-limit, express-mongo-sanitize, bcryptjs |
+| **Hosting** | Frontend → Vercel, Backend → any Node.js host |
 
 ---
 
@@ -45,7 +46,7 @@ Task-Manager/
 │   ├── .env.example
 │   └── tsconfig.json
 │
-└── frontend/                 # React SPA (Vite)
+└── frontend/                 # React SPA (Vite) — deployed to Vercel
     ├── src/
     │   ├── App.tsx            # Router setup and route protection
     │   ├── pages/             # LoginPage, SignupPage, DashboardPage
@@ -55,6 +56,7 @@ Task-Manager/
     │   │   ├── api.ts         # Axios instance with 401 handling
     │   │   └── socket.ts      # Socket.IO client (autoConnect: false, withCredentials)
     │   └── types/index.ts     # Shared TypeScript types
+    ├── vercel.json            # SPA rewrite rule (all routes → index.html)
     ├── .env
     └── vite.config.ts
 ```
@@ -125,7 +127,40 @@ All task routes require a valid auth cookie.
 
 ---
 
-## Getting Started
+## Deployment
+
+### Frontend — Vercel
+
+The frontend is deployed as a static Vite build on Vercel. `vercel.json` contains a catch-all rewrite rule so that React Router handles all client-side routes:
+
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+**Steps to deploy:**
+
+1. Push the repo to GitHub.
+2. Import the project in [Vercel](https://vercel.com). Set the **Root Directory** to `frontend`.
+3. Vercel auto-detects Vite — the default build command (`vite build`) and output directory (`dist`) require no changes.
+4. Add the environment variable below in **Project → Settings → Environment Variables**:
+
+| Variable | Value |
+|----------|-------|
+| `VITE_API_URL` | Your deployed backend URL, e.g. `https://your-backend.com/api` |
+
+> **Important:** Because the frontend is on a different origin than the backend, make sure the backend's `CORS_ORIGIN` is set to your Vercel deployment URL (e.g. `https://your-app.vercel.app`) and that `credentials: true` is enabled in the Express CORS config.
+
+### Backend
+
+Deploy to any Node.js-compatible host (Railway, Render, Fly.io, etc.). Set all variables from the table in the **Environment Variables** section below.
+
+---
+
+## Getting Started (Local)
 
 ### Prerequisites
 
@@ -147,7 +182,7 @@ This maps MongoDB to `localhost:27017`, which matches the default `MONGODB_URI` 
 
 ```bash
 cd backend
-cp .env.example .env       
+cp .env.example .env
 npm install
 npm run dev                 # starts ts-node-dev on PORT (default 5000)
 ```
@@ -171,14 +206,14 @@ The frontend expects the backend to be available at `http://localhost:5000`. Upd
 | Variable | Description |
 |----------|-------------|
 | `PORT` | HTTP port (default `5000`) |
-| `MONGODB_URI` | MongoDB connection string (default `mongodb://localhost:27017/task_manager` for Docker on host port 27017) |
+| `MONGODB_URI` | MongoDB connection string (default `mongodb://localhost:27017/task_manager`) |
 | `JWT_SECRET` | Secret key for signing JWTs |
 | `JWT_EXPIRES_IN` | Token expiry, e.g. `7d` |
 | `NODE_ENV` | `development` or `production` |
-| `CORS_ORIGIN` | Allowed frontend origin — also used as the Socket.IO CORS origin (default `http://localhost:5173`) |
+| `CORS_ORIGIN` | Allowed frontend origin — also used as the Socket.IO CORS origin (e.g. `https://your-app.vercel.app`) |
 
 ### Frontend (`.env`)
 
 | Variable | Description |
 |----------|-------------|
-| Backend base URL, e.g. `http://localhost:5000/api` — the `/api` suffix is stripped automatically for the Socket.IO connection |
+| `VITE_API_URL` | Backend base URL, e.g. `http://localhost:5000/api` — the `/api` suffix is stripped automatically for the Socket.IO connection |
