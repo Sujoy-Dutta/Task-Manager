@@ -1,5 +1,7 @@
 # TaskMind — Task Manager
 
+![TaskMind](frontend/public/favicon.svg)
+
 A full-stack task management application with JWT-based authentication, built with a React frontend and an Express + MongoDB backend.
 
 ---
