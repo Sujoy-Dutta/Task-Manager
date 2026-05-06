@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import Task from '../models/Task.model';
 import { AppError } from '../utils/AppError';
 import { sendSuccess } from '../utils/apiResponse';
+import { io } from '../socket';
 
 const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
 
@@ -72,6 +73,7 @@ export async function createTask(req: Request, res: Response, next: NextFunction
       priority: priority ?? 'medium',
     });
 
+    io.to(task.userId.toString()).emit('task:created', task);
     sendSuccess(res, { task }, 'Task created successfully.', 201);
   } catch (err) {
     next(err);
@@ -97,6 +99,7 @@ export async function updateTask(req: Request, res: Response, next: NextFunction
     );
 
     if (!task) throw new AppError('Task not found.', 404);
+    io.to(task.userId.toString()).emit('task:updated', task);
     sendSuccess(res, { task }, 'Task updated successfully.');
   } catch (err) {
     next(err);
@@ -112,6 +115,7 @@ export async function toggleTask(req: Request, res: Response, next: NextFunction
     task.status = task.status === 'completed' ? 'active' : 'completed';
     await task.save();
 
+    io.to(task.userId.toString()).emit('task:updated', task);
     sendSuccess(res, { task }, `Task marked as ${task.status}.`);
   } catch (err) {
     next(err);
@@ -123,6 +127,7 @@ export async function deleteTask(req: Request, res: Response, next: NextFunction
   try {
     const task = await Task.findOneAndDelete({ _id: req.params.id, userId: req.user!._id });
     if (!task) throw new AppError('Task not found.', 404);
+    io.to(task.userId.toString()).emit('task:deleted', { _id: req.params.id });
     sendSuccess(res, null, 'Task deleted successfully.');
   } catch (err) {
     next(err);

@@ -1,13 +1,18 @@
 import 'dotenv/config';
+import http from 'http';
 import app from './app';
 import { connectDB } from './config/db';
+import { initSocket } from './socket';
 
 const PORT = Number(process.env.PORT ?? 5000);
 
 async function bootstrap(): Promise<void> {
   await connectDB();
 
-  const server = app.listen(PORT, () => {
+  const httpServer = http.createServer(app);
+  initSocket(httpServer);
+
+  httpServer.listen(PORT, () => {
     console.log(`\n🚀  TaskMind API running on http://localhost:${PORT}`);
     console.log(`📄  Health check → http://localhost:${PORT}/health`);
     console.log(`🌍  Environment  → ${process.env.NODE_ENV ?? 'development'}\n`);
@@ -16,7 +21,7 @@ async function bootstrap(): Promise<void> {
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received — shutting down gracefully…`);
-    server.close(() => {
+    httpServer.close(() => {
       console.log('🔴  HTTP server closed.');
       process.exit(0);
     });

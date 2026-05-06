@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import type { Task, TaskFormData } from '../types';
 import api, { getApiError } from '../utils/api';
 import { useAuth } from './AuthContext';
+import { socket } from '../utils/socket';
 
 interface TaskContextValue {
   tasks: Task[];
@@ -38,6 +39,29 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    socket.connect();
+
+    socket.on('task:created', (task: Task) => {
+      setTasks((prev) => prev.some((t) => t._id === task._id) ? prev : [task, ...prev]);
+    });
+    socket.on('task:updated', (task: Task) => {
+      setTasks((prev) => prev.map((t) => (t._id === task._id ? task : t)));
+    });
+    socket.on('task:deleted', ({ _id }: { _id: string }) => {
+      setTasks((prev) => prev.filter((t) => t._id !== _id));
+    });
+
+    return () => {
+      socket.off('task:created');
+      socket.off('task:updated');
+      socket.off('task:deleted');
+      socket.disconnect();
+    };
+  }, [user]);
 
   const addTask = useCallback(async (form: TaskFormData) => {
     const { data } = await api.post<{ data: { task: Task } }>('/tasks', {
